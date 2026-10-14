@@ -4,16 +4,7 @@ from .serializers import CourseSerializer, LessonSerializer
 
 class IsOwnerOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        is_owner = obj == request.user
-        is_admin = request.user.is_superuser
-        return is_owner or is_admin
-
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsOwnerOrAdmin]
+        return request.user.is_staff
 
     # Опционально: по умолчанию показывать только своего, если не админ
     def get_queryset(self):
@@ -27,6 +18,12 @@ class CourseViewSet(viewsets.ModelViewSet):
     """Весь CRUD для курса одним классом."""
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
+    permission_classes = [IsOwnerOrAdmin]
+
+class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.all()
+    serializer_class = LessonSerializer
+    permission_classes = [IsOwnerOrAdmin]
 
 
 class LessonListCreateAPIView(generics.ListCreateAPIView):

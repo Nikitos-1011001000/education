@@ -20,14 +20,3 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        # Не включай password в вывод!
-        exclude = ('password',)
-
-    def create(self, validated_data):
-        # Важно: пароль нужно хешировать
-        user = User.objects.create_user(**validated_data)
-        return user
