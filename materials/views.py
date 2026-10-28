@@ -1,41 +1,97 @@
 from rest_framework import viewsets, generics, permissions
+from rest_framework.permissions import IsAuthenticated
+
 from .models import Course, Lesson
 from .serializers import CourseSerializer, LessonSerializer
+from .permissions import IsOwner, IsOwnerOrModerator
 
-class IsOwnerOrAdmin(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        is_owner = obj == request.user
-        is_admin = request.user.is_superuser
-        return is_owner or is_admin
+def is_moderator(user):
+    """
+    Проверяет, состоит ли пользователь в группе модераторов.
+    """
+    return (
+        user.is_authenticated
+        and user.groups.filter(name='moderator').exists()
+    )
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsOwnerOrAdmin]
-
-    # Опционально: по умолчанию показывать только своего, если не админ
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if not self.request.user.is_superuser:
-            # Обычный пользователь видит только себя
-            return qs.filter(pk=self.request.user.pk)
-        return qs
 
 class CourseViewSet(viewsets.ModelViewSet):
-    """Весь CRUD для курса одним классом."""
-    queryset = Course.objects.all()
+    """
+    CRUD для курсов.
+
+    Обычный пользователь работает только со своими курсами.
+    Модератор видит и может редактировать все курсы,
+    но удалять может только свои.
+    """
     serializer_class = CourseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Course.objects.all()
+
+        if is_moderator(self.request.user):
+            return queryset
+
+        return queryset.filter(owner=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated, IsOwnerOrModerator]
+
+        elif self.action in ['update', 'partial_update']:
+            permission_classes = [IsAuthenticated, IsOwnerOrModerator]
+
+        elif self.action == 'destroy':
+            permission_classes = [IsAuthenticated, IsOwner]
+
+        else:
+            permission_classes = [IsAuthenticated]
+
+        return [
+            permission()
+            for permission in permission_classes
+        ]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
-class LessonListCreateAPIView(generics.ListCreateAPIView):
-    """GET — список уроков, POST — создать урок."""
-    queryset = Lesson.objects.all()
+class LessonViewSet(viewsets.ModelViewSet):
+    """
+    CRUD для уроков.
+
+    Обычный пользователь работает только со своими уроками.
+    Модератор видит и может редактировать все уроки,
+    но удалять может только свои.
+    """
     serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = Lesson.objects.all()
 
-class LessonRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    """GET/PUT/PATCH/DELETE — один урок."""
-    queryset = Lesson.objects.all()
-    serializer_class = LessonSerializer
+        if is_moderator(self.request.user):
+            return queryset
+
+        return queryset.filter(owner=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated, IsOwnerOrModerator]
+
+        elif self.action in ['update', 'partial_update']:
+            permission_classes = [IsAuthenticated, IsOwnerOrModerator]
+
+        elif self.action == 'destroy':
+            permission_classes = [IsAuthenticated, IsOwner]
+
+        else:
+            permission_classes = [IsAuthenticated]
+
+        return [
+            permission()
+            for permission in permission_classes
+        ]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)

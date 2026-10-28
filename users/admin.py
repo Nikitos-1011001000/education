@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User  # <-- ЭТОТ ИМПОРТ КРИТИЧЕСКИ ВАЖЕН!
+from .models import User, Payment  # <-- ЭТОТ ИМПОРТ КРИТИЧЕСКИ ВАЖЕН!
 
 class CustomUserAdmin(UserAdmin):
     model = User
@@ -25,3 +25,15 @@ class CustomUserAdmin(UserAdmin):
 
 # Регистрируем кастомного пользователя с кастомной админкой
 admin.site.register(User, CustomUserAdmin)
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "payment_date",
+        "paid_course",
+        "paid_lesson",
+        "amount",
+        "payment_method",
+    )
