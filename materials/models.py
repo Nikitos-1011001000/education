@@ -1,6 +1,14 @@
+from django.conf import settings
 from django.db import models
 
 class Course(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='courses',
+        null=True,
+        blank=True
+    )
     title = models.CharField(max_length=200)
     preview = models.ImageField(upload_to='courses/', blank=True, null=True)
     description = models.TextField(blank=True)
@@ -11,6 +19,13 @@ class Course(models.Model):
 
 class Lesson(models.Model):
     # Оставляем только ОДИН ForeignKey
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='lessons',
+        null=True,  # временно
+        blank=True
+    )
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
