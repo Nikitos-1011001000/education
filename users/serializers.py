@@ -1,7 +1,8 @@
 from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
 from rest_framework import serializers
 
-from .models import Payment, User
+from .models import User
+from materials.models import Payment
 
 class PublicProfileSerializer(serializers.ModelSerializer):
     """

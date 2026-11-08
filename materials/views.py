@@ -1,16 +1,116 @@
-from rest_framework import viewsets, generics, permissions
+from rest_framework import viewsets, generics, permissions, status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Course, Lesson, Subscription
-from .serializers import CourseSerializer, LessonSerializer, SubscriptionSerializer
+from .models import Course, Lesson, Subscription, Payment
+from .serializers import CourseSerializer, LessonSerializer, SubscriptionSerializer, PaymentSerializer, SubscriptionRequestSerializer
 from .permissions import IsOwner, IsOwnerOrModerator
 from django.shortcuts import get_object_or_404
-from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from materials.paginators import StandardPagination
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiExample,
+)
+from materials.services import (
+    create_payment_session,
+    retrieve_stripe_session,
+)
+
+class PaymentViewSet(viewsets.ModelViewSet):
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        return Payment.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        course = serializer.validated_data['paid_course']
+
+        stripe_data = create_payment_session(course)
+
+        serializer.save(
+            user=self.request.user,
+            amount=course.price,
+            payment_method='transfer',
+            stripe_session_id=stripe_data['stripe_session_id'],
+            payment_url=stripe_data['payment_url'],
+        )
+
+class PaymentStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, payment_id):
+        payment = Payment.objects.filter(
+            id=payment_id,
+            user=request.user,
+        ).first()
+
+        if payment is None:
+            return Response(
+                {'error': 'Платёж не найден'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not payment.stripe_session_id:
+            return Response(
+                {'error': 'Для платежа не создана Stripe-сессия'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        session_data = retrieve_stripe_session(
+            payment.stripe_session_id,
+        )
+
+        return Response(session_data)
 
 class SubscriptionAPIView(APIView):
+    @extend_schema(
+        summary='Подписаться или отписаться от курса',
+        description=(
+                'Переключает подписку текущего пользователя на курс. '
+                'Если подписки нет — создаёт её, если есть — удаляет.'
+        ),
+        request=SubscriptionRequestSerializer,
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'message': {
+                        'type': 'string',
+                        'example': 'подписка добавлена',
+                    }
+                },
+            },
+            400: {
+                'description': 'Не передан course_id.',
+            },
+            401: {
+                'description': 'Пользователь не авторизован.',
+            },
+            404: {
+                'description': 'Курс не найден.',
+            },
+        },
+        examples=[
+            OpenApiExample(
+                'Пример запроса',
+                value={'course_id': 5},
+            ),
+            OpenApiExample(
+                'Подписка добавлена',
+                value={'message': 'подписка добавлена'},
+                response_only=True,
+            ),
+            OpenApiExample(
+                'Подписка удалена',
+                value={'message': 'подписка удалена'},
+                response_only=True,
+            ),
+        ],
+    )
+
     def post(self, request, *args, **kwargs):
         user = request.user
         course_id = request.data.get('course_id')

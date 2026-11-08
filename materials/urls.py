@@ -10,11 +10,14 @@ from .views import (
     LessonUpdateAPIView,
     SubscriptionAPIView,
     LessonViewSet,
+    PaymentViewSet,
+    PaymentStatusAPIView,
 )
 
 router = DefaultRouter()
 router.register(r'courses', CourseViewSet, basename='course')
 router.register(r'lessons', LessonViewSet, basename='lesson')
+router.register(r'payments', PaymentViewSet, basename='payment')
 
 
 urlpatterns = [
@@ -23,5 +26,10 @@ urlpatterns = [
         'subscriptions/',
         SubscriptionAPIView.as_view(),
         name='subscription',
+    ),
+    path(
+        'payments/<int:payment_id>/status/',
+        PaymentStatusAPIView.as_view(),
+        name='payment-status',
     ),
 ]

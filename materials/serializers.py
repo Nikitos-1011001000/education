@@ -1,10 +1,14 @@
 from rest_framework import serializers
-from .models import Course, Lesson, Subscription
+from .models import Course, Lesson, Subscription, Payment
 from django.contrib.auth import get_user_model   # <-- правильный способ
 from materials.validators import validate_youtube_link
 
 User = get_user_model()
 
+class SubscriptionRequestSerializer(serializers.Serializer):
+    course_id = serializers.IntegerField(
+        help_text='ID курса, на который нужно подписаться.'
+    )
 
 class LessonSerializer(serializers.ModelSerializer):
     video_link = serializers.URLField(
@@ -52,6 +56,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "lessons_count",
             "lessons",
             "is_subscribed",
+            "price",
         ]
 
     def get_lessons_count(self, obj):
@@ -76,3 +81,29 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
         fields = '__all__'  # Или явно: ['id', 'user', 'plan', 'is_active', 'created_at']
+
+class PaymentSerializer(serializers.ModelSerializer):
+    course = CourseSerializer(read_only=True)
+    course_id = serializers.PrimaryKeyRelatedField(
+        queryset=Course.objects.all(),
+        source='paid_course',
+        write_only=True,
+    )
+
+    class Meta:
+        model = Payment
+        fields = (
+            'id',
+            'user',
+            'course',
+            'course_id',
+            'payment_url',
+            'status',
+            'stripe_session_id',
+        )
+        read_only_fields = (
+            'user',
+            'payment_url',
+            'status',
+            'stripe_session_id',
+        )
