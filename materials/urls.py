@@ -1,13 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
 from .views import (
     SubscriptionAPIView,
     CourseViewSet,
-    LessonCreateAPIView,
-    LessonDestroyAPIView,
-    LessonListAPIView,
-    LessonRetrieveAPIView,
-    LessonUpdateAPIView,
     SubscriptionAPIView,
     LessonViewSet,
     PaymentViewSet,

@@ -1,5 +1,8 @@
 from rest_framework import viewsets, generics, permissions, status
 from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
+from django.utils import timezone
+
 
 from .models import Course, Lesson, Subscription, Payment
 from .serializers import CourseSerializer, LessonSerializer, SubscriptionSerializer, PaymentSerializer, SubscriptionRequestSerializer
@@ -16,6 +19,7 @@ from materials.services import (
     create_payment_session,
     retrieve_stripe_session,
 )
+from .tasks import send_course_update_notification
 
 class PaymentViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentSerializer
@@ -193,6 +197,19 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()  # сохранение прошло успешно
+
+        now = timezone.now()
+        if (
+            instance.last_notification_sent_at is None
+            or now - instance.last_notification_sent_at >= timedelta(hours=4)
+        ):
+            instance.last_notification_sent_at = now
+            instance.save(update_fields=['last_notification_sent_at'])
+
+            send_course_update_notification.delay(instance.id)
 
 class LessonListAPIView(generics.ListAPIView):
     serializer_class = LessonSerializer

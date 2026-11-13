@@ -44,6 +44,11 @@ class Course(models.Model):
         default=0,
         verbose_name='Цена курса',
     )
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_notification_sent_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
 
     def __str__(self):
         return self.title
