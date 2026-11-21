@@ -1,0 +1,65 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: education_test
+          POSTGRES_USER: education_user
+          POSTGRES_PASSWORD: education_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U education_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          DEBUG: "1"
+          SECRET_KEY: test-secret-key
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+          POSTGRES_DB: education_test
+          POSTGRES_USER: education_user
+          POSTGRES_PASSWORD: education_password
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          REDIS_HOST: localhost
+          REDIS_PORT: "6379"
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          CELERY_RESULT_BACKEND: redis://localhost:6379/0
+        run: |
+          python manage.py test
