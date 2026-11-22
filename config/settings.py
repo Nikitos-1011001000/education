@@ -31,7 +31,7 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = "django-insecure-28sbu(jdyy3xtai@9qonlxj$wq79lnta$q2u()p^jw5qo48tp2"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "0") == "1"
 
 ALLOWED_HOSTS = []
 
@@ -162,6 +162,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 # Email
